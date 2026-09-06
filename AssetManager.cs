@@ -9,6 +9,7 @@ public sealed class AssetManager
     private readonly HashSet<string> _required = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Font> _fonts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Model> _models = new(StringComparer.Ordinal);
 
     public AssetManager(AssetConfig config)
     {
@@ -19,12 +20,12 @@ public sealed class AssetManager
             StringComparer.Ordinal);
     }
 
-    public int LoadedCount => _textures.Count + _fonts.Count;
+    public int LoadedCount => _textures.Count + _fonts.Count + _models.Count;
 
     public int TotalCount => _catalogue.Count;
     public int RequiredCount => _required.Count;
     public int PendingLoadCount => _required.Count(key => !IsLoaded(key));
-    public int PendingUnloadCount => _textures.Keys.Concat(_fonts.Keys).Count(key => !_required.Contains(key));
+    public int PendingUnloadCount => _textures.Keys.Concat(_fonts.Keys).Concat(_models.Keys).Count(key => !_required.Contains(key));
     public bool HasPendingWork => PendingUnloadCount != 0 || PendingLoadCount != 0;
 
     /// <summary>Number of loads and unloads in the current transition.</summary>
@@ -116,8 +117,10 @@ public sealed class AssetManager
 
             if (asset.Type == "Texture")
                 _textures.Add(asset.Key, LoadTexture(path));
-            else
+            else if (asset.Type == "Font")
                 _fonts.Add(asset.Key, LoadFont(path, asset.Size!.Value));
+            else
+                _models.Add(asset.Key, LoadModel(path));
 
             CompletedWorkCount++;
             Console.WriteLine($"[Assets] LOAD {asset.Key}");
@@ -162,6 +165,17 @@ public sealed class AssetManager
         return font;
     }
 
+    private static Model LoadModel(string path)
+    {
+        Model model = Raylib.LoadModel(path);
+        if (!Raylib.IsModelValid(model))
+        {
+            Raylib.UnloadModel(model);
+            throw new InvalidDataException("Raylib could not load a usable model.");
+        }
+        return model;
+    }
+
     /// <summary>Returned handles are borrowed; only this manager should unload them.</summary>
     public Texture2D GetTexture(string key) => _textures.TryGetValue(key, out var texture)
         ? texture : throw new KeyNotFoundException($"Texture '{key}' is not loaded.");
@@ -170,7 +184,11 @@ public sealed class AssetManager
     public Font GetFont(string key) => _fonts.TryGetValue(key, out var font)
         ? font : throw new KeyNotFoundException($"Font '{key}' is not loaded.");
 
-    public bool IsLoaded(string key) => _textures.ContainsKey(key) || _fonts.ContainsKey(key);
+    /// <summary>Returns a borrowed model, valid until this manager unloads it. Callers must not unload it or its resources.</summary>
+    public Model GetModel(string key) => _models.TryGetValue(key, out var model)
+        ? model : throw new KeyNotFoundException($"Model '{key}' is not loaded.");
+
+    public bool IsLoaded(string key) => _textures.ContainsKey(key) || _fonts.ContainsKey(key) || _models.ContainsKey(key);
 
     private void UnloadOwned(string key)
     {
@@ -178,6 +196,8 @@ public sealed class AssetManager
             Raylib.UnloadTexture(texture);
         else if (_fonts.Remove(key, out var font))
             Raylib.UnloadFont(font);
+        else if (_models.Remove(key, out var model))
+            Raylib.UnloadModel(model);
         else
             return;
         Console.WriteLine($"[Assets] UNLOAD {key}");
@@ -186,7 +206,7 @@ public sealed class AssetManager
     /// <summary>Immediately unloads all owned resources and clears requirements. Safe to call again.</summary>
     public void UnloadAll()
     {
-        foreach (string key in _textures.Keys.Concat(_fonts.Keys).ToArray())
+        foreach (string key in _textures.Keys.Concat(_fonts.Keys).Concat(_models.Keys).ToArray())
             UnloadOwned(key);
         _required.Clear();
         ResetTransitionProgress();
