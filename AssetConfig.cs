@@ -18,14 +18,14 @@ public sealed class AssetConfig
                 throw new InvalidDataException($"Asset key '{asset.Key}' must not have surrounding whitespace.");
             if (!keys.Add(asset.Key))
                 throw new InvalidDataException($"Duplicate asset key '{asset.Key}'.");
-            if (asset.Type is not ("Texture" or "Font"))
-                throw new InvalidDataException($"Asset '{asset.Key}' requires Type 'Texture' or 'Font'.");
+            if (asset.Type is not ("Texture" or "Font" or "Model"))
+                throw new InvalidDataException($"Asset '{asset.Key}' requires Type 'Texture', 'Font' or 'Model'.");
             if (string.IsNullOrWhiteSpace(asset.Path))
                 throw new InvalidDataException($"Asset '{asset.Key}' requires a Path.");
             if (asset.Type == "Font" && asset.Size is not > 0)
                 throw new InvalidDataException($"Font '{asset.Key}' requires a positive Size.");
-            if (asset.Type == "Texture" && asset.Size is not null)
-                throw new InvalidDataException($"Texture '{asset.Key}' must not specify a font Size.");
+            if (asset.Type != "Font" && asset.Size is not null)
+                throw new InvalidDataException($"{asset.Type} '{asset.Key}' must not specify a font Size.");
             string resolvedPath;
             try
             {
