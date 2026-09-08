@@ -3,12 +3,14 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <PackageId>RaylibGameFramework.Assets</PackageId>
-    <Version>0.1.1</Version>
+    <Version>0.1.4</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
     <PackageReference Include="Raylib-cs" Version="8.0.0" />
   </ItemGroup>
 
